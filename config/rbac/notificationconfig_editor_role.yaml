@@ -1,0 +1,31 @@
+# permissions for end users to edit notificationconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: notificationconfig-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: gke-update-notification
+    app.kubernetes.io/part-of: gke-update-notification
+    app.kubernetes.io/managed-by: kustomize
+  name: notificationconfig-editor-role
+rules:
+- apiGroups:
+  - notification.controller.renault.com
+  resources:
+  - notificationconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - notification.controller.renault.com
+  resources:
+  - notificationconfigs/status
+  verbs:
+  - get
