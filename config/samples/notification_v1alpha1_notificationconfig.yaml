@@ -6,4 +6,14 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: notificationconfig-sample
 spec:
-  # TODO(user): Add fields here
+  backendSecretRef:
+    name: test
+    key: test
+  checkInterval: 1m
+  metrics:
+    exporterUrl: https://testurl.dyna.com
+    labels:
+      host: "my-host"
+      data: "my-data"
+    name: arpan.customMetrics
+    type: Dynatrace

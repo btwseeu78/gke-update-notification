@@ -18,19 +18,20 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"github.com/go-logr/logr"
 
+	notificationv1alpha1 "btwseeu78/gke-update-notification/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	notificationv1alpha1 "btwseeu78/gke-update-notification/api/v1alpha1"
 )
 
 // NotificationConfigReconciler reconciles a NotificationConfig object
 type NotificationConfigReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Log    logr.Logger
 }
 
 //+kubebuilder:rbac:groups=notification.controller.renault.com,resources=notificationconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -47,11 +48,26 @@ type NotificationConfigReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.2/pkg/reconcile
 func (r *NotificationConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := r.Log.WithValues("notificationconfig", req.NamespacedName)
+	log.Info("Reconciling NotificationConfig")
 
-	// TODO(user): your logic here
+	notificationConfig := &notificationv1alpha1.NotificationConfig{}
+	if err := r.Client.Get(ctx, req.NamespacedName, notificationConfig); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
 
-	return ctrl.Result{}, nil
+	checkInterval := notificationConfig.Spec.CheckInterval.Duration
+
+	metricName := notificationConfig.Spec.Metrics.Name
+	metricMetadata := notificationConfig.Spec.Metrics.Labels
+	metricString, err := CreateDynaMetrics(metricName, metricMetadata)
+	if err != nil {
+		return ctrl.Result{RequeueAfter: checkInterval}, err
+	}
+	log.Info("Metric Data Is", "metricName", metricName,
+		"metricMetadata", metricMetadata, "metricsString", metricString)
+
+	return ctrl.Result{RequeueAfter: checkInterval}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -59,4 +75,16 @@ func (r *NotificationConfigReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&notificationv1alpha1.NotificationConfig{}).
 		Complete(r)
+}
+
+func CreateDynaMetrics(metricName string, labels map[string]string) (string, error) {
+	var tempMetric string
+	if metricName == "" {
+		return "", errors.New("metric name is required")
+	}
+	tempMetric = metricName
+	for k, v := range labels {
+		tempMetric = tempMetric + "," + k + ":" + v
+	}
+	return tempMetric, nil
 }
